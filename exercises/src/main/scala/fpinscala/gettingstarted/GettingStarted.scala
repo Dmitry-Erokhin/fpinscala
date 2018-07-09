@@ -1,5 +1,7 @@
 package fpinscala.gettingstarted
 
+import scala.annotation.tailrec
+
 // A comment!
 /* Another comment */
 /** A documentation comment */
@@ -36,7 +38,10 @@ object MyModule {
 
   // Exercise 1: Write a function to compute the nth fibonacci number
 
-  def fib(n: Int): Int = ???
+  def fib(n: Int): Int = {
+    def go(x: Int, y: Int): Int = if (y == 0) x else x + go(y, y - 1)
+    if (n<=0) 0 else go(n, n-1)
+  }
 
   // This definition and `formatAbs` are very similar..
   private def formatFactorial(n: Int) = {
@@ -70,6 +75,7 @@ object TestFib {
 
   // test implementation of `fib`
   def main(args: Array[String]): Unit = {
+    //FIXME: incorrect expectation?
     println("Expected: 0, 1, 1, 2, 3, 5, 8")
     println("Actual:   %d, %d, %d, %d, %d, %d, %d".format(fib(0), fib(1), fib(2), fib(3), fib(4), fib(5), fib(6)))
   }
@@ -140,26 +146,31 @@ object PolymorphicFunctions {
 
   // Exercise 2: Implement a polymorphic function to check whether
   // an `Array[A]` is sorted
-  def isSorted[A](as: Array[A], gt: (A,A) => Boolean): Boolean = ???
+  def isSorted[A](as: Array[A], gt: (A,A) => Boolean): Boolean = {
+    @tailrec
+    def go(i: Int): Boolean = i == as.length || gt(as(i), as(i-1)) && go(i+1)
+    if (as.length < 2) true else go(1)
+  }
 
   // Polymorphic functions are often so constrained by their type
   // that they only have one implementation! Here's an example:
 
-  def partial1[A,B,C](a: A, f: (A,B) => C): B => C =
-    (b: B) => f(a, b)
+  def partial1[A,B,C](a: A, f: (A,B) => C): B => C = (b: B) => f(a, b)
 
   // Exercise 3: Implement `curry`.
 
   // Note that `=>` associates to the right, so we could
   // write the return type as `A => B => C`
-  def curry[A,B,C](f: (A, B) => C): A => (B => C) =
-    ???
-
+  def curry[A,B,C](f: (A, B) => C): A => (B => C) = { a: A =>
+    b: B => f(a, b)
+    //f(a, _)
+  }
   // NB: The `Function2` trait has a `curried` method already
 
-  // Exercise 4: Implement `uncurry`
-  def uncurry[A,B,C](f: A => B => C): (A, B) => C =
-    ???
+  // Exercise 4: Implement `uncurry`.
+  def uncurry[A,B,C](f: A => B => C): (A, B) => C = (a: A, b: B) => f(a)(b)
+
+
 
   /*
   NB: There is a method on the `Function` object in the standard library,
@@ -173,6 +184,34 @@ object PolymorphicFunctions {
 
   // Exercise 5: Implement `compose`
 
-  def compose[A,B,C](f: B => C, g: A => B): A => C =
-    ???
+  def compose[A,B,C](f: B => C, g: A => B): A => C = { a: A => f(g(a)) }
 }
+
+object Test {
+
+  import fpinscala.gettingstarted.PolymorphicFunctions.isSorted
+  import fpinscala.gettingstarted.PolymorphicFunctions.curry
+
+  // test implementation of `fib`
+  def main(args: Array[String]): Unit = {
+//    testIsSorted()
+    testCurry()
+  }
+
+  private def testIsSorted() = {
+    println("Expected: true, true, true, true, false")
+    println("Actual:   %b, %b, %b, %b, %b".format(
+      isSorted[Int](Array.empty, _>_),
+      isSorted[Int](Array(1), _>_),
+      isSorted[Int](Array(1,2), _>_),
+      isSorted[Int](Array(1,2,3), _>_),
+      isSorted[Int](Array(1,2,3,2), _>_)))
+  }
+
+  private def testCurry() = {
+    val c = curry[Int,Int,Boolean](_ == _)
+    val pc = c(5)
+    println(pc(5) + " " + pc(10))
+  }
+}
+
