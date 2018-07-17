@@ -1,6 +1,7 @@
 package fpinscala.laziness
 
 import Stream._
+
 trait Stream[+A] {
 
   def foldRight[B](z: => B)(f: (A, => B) => B): B = // The arrow `=>` in front of the argument type `B` means that the function `f` takes its second argument by name and may choose not to evaluate it.
@@ -17,11 +18,36 @@ trait Stream[+A] {
     case Empty => None
     case Cons(h, t) => if (f(h())) Some(h()) else t().find(f)
   }
-  def take(n: Int): Stream[A] = ???
 
-  def drop(n: Int): Stream[A] = ???
+  def toList: List[A] = foldRight[List[A]](Nil) {_ :: _}
 
-  def takeWhile(p: A => Boolean): Stream[A] = ???
+  //NOT TAILREC
+  def take(n: Int): Stream[A] = this match {
+    case Empty => Empty
+    case Cons(_, _) if n == 0 => Empty
+    case Cons(h, t) => Cons(h, () => t().take(n-1))
+//    case Cons(h, t) => cons(h(), t().take(n-1))
+  }
+
+  @annotation.tailrec
+  final def drop(n: Int): Stream[A] = this match {
+    case Empty => Empty
+    case Cons(_, t) if n > 0 => t().drop(n-1)
+    case s => s
+  }
+
+  @annotation.tailrec
+  final def dropWhile(p: A => Boolean): Stream[A] = this match {
+    case Empty => Empty
+    case Cons(h, t) if p(h()) => t().dropWhile(p)
+    case s => s
+  }
+
+  //NOT TAILREC
+  def takeWhile(p: A => Boolean): Stream[A] = this match {
+    case Cons(h, t) if p(h()) => cons(h(), t().takeWhile(p))
+    case _ => Empty
+  }
 
   def forAll(p: A => Boolean): Boolean = ???
 
@@ -32,6 +58,7 @@ trait Stream[+A] {
 
   def startsWith[B](s: Stream[B]): Boolean = ???
 }
+
 case object Empty extends Stream[Nothing]
 case class Cons[+A](h: () => A, t: () => Stream[A]) extends Stream[A]
 
@@ -52,4 +79,12 @@ object Stream {
   def from(n: Int): Stream[Int] = ???
 
   def unfold[A, S](z: S)(f: S => Option[(A, S)]): Stream[A] = ???
+}
+
+object Test extends scala.App {
+  println(Stream(1,2,3,4,5).toList)
+  println(Stream(1,2,3,4,5).take(2).toList)
+  println(Stream(1,2,3,4,5).drop(2).toList)
+  println(Stream(1,2,3,4,5).dropWhile(_ < 4).toList)
+  println(Stream(1,2,3,4,5).takeWhile(_ < 4).toList)
 }
